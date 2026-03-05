@@ -258,6 +258,35 @@ func (s *Store) DeleteProject(project string) error {
 	return os.RemoveAll(projectPath)
 }
 
+func (s *Store) GetIssue(project, id string) (IssueDoc, IssueMeta, error) {
+	projectPath, meta, err := s.loadBoard(project)
+	if err != nil {
+		return IssueDoc{}, IssueMeta{}, err
+	}
+	idx := findIssueIndex(meta.Issues, id)
+	if idx == -1 {
+		return IssueDoc{}, IssueMeta{}, fmt.Errorf("issue not found: %s", id)
+	}
+	m := meta.Issues[idx]
+	doc, err := s.readIssue(projectPath, m.File)
+	if err != nil {
+		return IssueDoc{}, IssueMeta{}, err
+	}
+	return doc, m, nil
+}
+
+func (s *Store) GetIssueFilePath(project, id string) (string, error) {
+	projectPath, meta, err := s.loadBoard(project)
+	if err != nil {
+		return "", err
+	}
+	idx := findIssueIndex(meta.Issues, id)
+	if idx == -1 {
+		return "", fmt.Errorf("issue not found: %s", id)
+	}
+	return filepath.Join(projectPath, meta.Issues[idx].File), nil
+}
+
 func (s *Store) loadBoard(project string) (string, BoardMeta, error) {
 	projectPath, err := s.projectPath(project)
 	if err != nil {

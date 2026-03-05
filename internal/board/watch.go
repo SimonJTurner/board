@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"sort"
 	"time"
@@ -46,7 +47,7 @@ func Watch(ctx context.Context, store *Store, cfg WatchConfig) error {
 			}
 			events := diffIssues(prev, curr, cfg.EnableMap)
 			for _, ev := range events {
-				emitEvent(ev, cfg.HookCmd)
+				emitEvent(ev, cfg.HookCmd, true)
 			}
 			prev = curr
 		}
@@ -143,13 +144,15 @@ func diffIssues(prev, curr BoardMeta, enabled map[string]bool) []Event {
 	return events
 }
 
-func emitEvent(ev Event, hookCmd string) {
+func emitEvent(ev Event, hookCmd string, printLine bool) {
 	b, err := json.Marshal(ev)
 	if err != nil {
 		log.Printf("watch: marshal event failed: %v", err)
 		return
 	}
-	fmt.Println(formatEventLine(ev))
+	if printLine {
+		fmt.Println(formatEventLine(ev))
+	}
 	if hookCmd == "" {
 		return
 	}
@@ -219,4 +222,12 @@ func statusIcon(status string) string {
 	default:
 		return "❔"
 	}
+}
+
+func isTerminal(f *os.File) bool {
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) != 0
 }

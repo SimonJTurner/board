@@ -302,11 +302,12 @@ func runWatch(store *Store, args []string) error {
 	fs := flag.NewFlagSet("watch", flag.ContinueOnError)
 	interval := fs.Duration("interval", 2*time.Second, "poll interval (e.g. 2s)")
 	hookCmd := fs.String("hook-cmd", "", "shell command to run per event; event JSON is provided via stdin")
+	plain := fs.Bool("plain", false, "disable interactive TUI mode")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() > 1 {
-		return errors.New("usage: board watch [project] [--interval 2s] [--hook-cmd \"cmd\"]")
+		return errors.New("usage: board watch [project] [--interval 2s] [--hook-cmd \"cmd\"] [--plain]")
 	}
 	project := ""
 	if fs.NArg() == 1 {
@@ -315,7 +316,7 @@ func runWatch(store *Store, args []string) error {
 		var err error
 		project, err = inferProjectFromGitRepo()
 		if err != nil {
-			return errors.New("usage: board watch [project] [--interval 2s] [--hook-cmd \"cmd\"] (or run inside a git repo to auto-detect)")
+			return errors.New("usage: board watch [project] [--interval 2s] [--hook-cmd \"cmd\"] [--plain] (or run inside a git repo to auto-detect)")
 		}
 	}
 	if project == "" {
@@ -327,6 +328,14 @@ func runWatch(store *Store, args []string) error {
 	fmt.Printf("watching project %q (poll interval %s)\n", project, interval.String())
 	if *hookCmd != "" {
 		fmt.Printf("hook command enabled: %s\n", *hookCmd)
+	}
+	if !*plain && isTerminal(os.Stdin) && isTerminal(os.Stdout) {
+		return WatchTUI(ctx, store, WatchConfig{
+			Project:   project,
+			Interval:  *interval,
+			HookCmd:   *hookCmd,
+			EnableMap: DefaultEnabledEventTypes,
+		})
 	}
 	return Watch(ctx, store, WatchConfig{
 		Project:   project,
@@ -350,5 +359,5 @@ func printUsage() {
 	fmt.Println("  board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]")
 	fmt.Println("  board issue list [project] [--status ...] [--limit N]")
 	fmt.Println("  board issue next [project]    # same as --status todo --limit 1")
-	fmt.Println("  board watch [project] [--interval 2s] [--hook-cmd \"cmd\"]")
+	fmt.Println("  board watch [project] [--interval 2s] [--hook-cmd \"cmd\"] [--plain]")
 }

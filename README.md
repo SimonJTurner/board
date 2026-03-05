@@ -41,10 +41,20 @@ Transitions are unrestricted.
 - `board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]`
 - `board issue list [project] [--status <status>] [--limit <N>]` (if omitted, uses current git repo folder name)
 - `board issue next [project]` (same as `issue list --status todo --limit 1`)
-- `board watch [project] [--interval 2s] [--hook-cmd "your-command"]` (if omitted, uses current git repo folder name)
+- `board watch [project] [--interval 2s] [--hook-cmd "your-command"] [--plain]` (if omitted, uses current git repo folder name)
 
 ## Watch behavior
-`watch` emits JSON events to stdout and optionally invokes `--hook-cmd` with the same JSON payload on stdin.
+By default, `watch` launches an interactive TUI:
+- `j` / `k` moves selection
+- `Enter` opens issue details; in details view, `Enter` opens the issue file in `$EDITOR` (fallback `vim`)
+- `b` goes back from details
+- `q` quits
+
+The bottom footer is sticky and always shows remaining `todo` count.
+
+Use `--plain` to disable TUI and print one line per event.
+
+Hooks still work in both modes: `--hook-cmd` receives JSON event payload on stdin.
 
 Event types are defined in `internal/board/types.go` via constants and `DefaultEnabledEventTypes`:
 - `issue_created`
