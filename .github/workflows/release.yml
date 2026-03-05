@@ -28,7 +28,9 @@ jobs:
           )
           for combo in "${combos[@]}"; do
             set -- $combo
-            GOOS=$1 GOARCH=$2 go build -o "board-${GOOS}-${GOARCH}" ./cmd/board
+            GOOS=$1
+            GOARCH=$2
+            go build -o "board-${GOOS}-${GOARCH}" ./cmd/board
             if [ "$GOOS" = "windows" ]; then
               mv "board-${GOOS}-${GOARCH}" "board-${GOOS}-${GOARCH}.exe"
             fi
