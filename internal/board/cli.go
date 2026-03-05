@@ -116,7 +116,7 @@ func runProject(store *Store, args []string) error {
 
 func runIssue(store *Store, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: board issue <create|assign|update|list> ...")
+		return errors.New("usage: board issue <create|assign|update|list|next> ...")
 	}
 	switch args[0] {
 	case "create":
@@ -127,6 +127,8 @@ func runIssue(store *Store, args []string) error {
 		return runIssueUpdate(store, args[1:])
 	case "list":
 		return runIssueList(store, args[1:])
+	case "next":
+		return runIssueNext(store, args[1:])
 	default:
 		return fmt.Errorf("unknown issue command: %s", args[0])
 	}
@@ -225,13 +227,44 @@ func runIssueUpdate(store *Store, args []string) error {
 }
 
 func runIssueList(store *Store, args []string) error {
-	if len(args) != 1 {
-		return errors.New("usage: board issue list <project>")
+	projectArg, flagArgs := splitOptionalProjectArg(args)
+	fs := flag.NewFlagSet("issue list", flag.ContinueOnError)
+	status := fs.String("status", "", "filter by status (todo|in_progress|done|cancelled)")
+	limit := fs.Int("limit", 0, "max number of issues to show (0 means no limit)")
+	if err := fs.Parse(flagArgs); err != nil {
+		return err
 	}
-	issues, err := store.ListIssues(args[0])
+	if fs.NArg() != 0 {
+		return errors.New("usage: board issue list [project] [--status ...] [--limit N]")
+	}
+
+	project, err := resolveProject(projectArg)
+	if err != nil {
+		return errors.New("usage: board issue list [project] [--status ...] [--limit N] (or run inside a git repo to auto-detect)")
+	}
+	issues, err := store.ListIssues(project)
 	if err != nil {
 		return err
 	}
+	if *status != "" {
+		if !AllowedStatuses[*status] {
+			return fmt.Errorf("invalid status %q (allowed: todo, in_progress, done, cancelled)", *status)
+		}
+		filtered := make([]IssueMeta, 0, len(issues))
+		for _, issue := range issues {
+			if issue.Status == *status {
+				filtered = append(filtered, issue)
+			}
+		}
+		issues = filtered
+	}
+	if *limit < 0 {
+		return errors.New("limit must be >= 0")
+	}
+	if *limit > 0 && len(issues) > *limit {
+		issues = issues[:*limit]
+	}
+
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 	fmt.Fprintln(w, "NUMBER\tID\tSTATUS\tASSIGNEE\tTITLE")
 	for _, issue := range issues {
@@ -240,19 +273,50 @@ func runIssueList(store *Store, args []string) error {
 	return w.Flush()
 }
 
-func runWatch(store *Store, args []string) error {
-	if len(args) == 0 {
-		return errors.New("usage: board watch <project> [--interval 2s] [--hook-cmd \"cmd\"]")
+func runIssueNext(store *Store, args []string) error {
+	if len(args) > 1 {
+		return errors.New("usage: board issue next [project]")
 	}
-	project := strings.TrimSpace(args[0])
+	if len(args) == 1 {
+		return runIssueList(store, []string{args[0], "--status", StatusTodo, "--limit", "1"})
+	}
+	return runIssueList(store, []string{"--status", StatusTodo, "--limit", "1"})
+}
+
+func splitOptionalProjectArg(args []string) (project string, flagArgs []string) {
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		return strings.TrimSpace(args[0]), args[1:]
+	}
+	return "", args
+}
+
+func resolveProject(project string) (string, error) {
+	project = strings.TrimSpace(project)
+	if project != "" {
+		return project, nil
+	}
+	return inferProjectFromGitRepo()
+}
+
+func runWatch(store *Store, args []string) error {
 	fs := flag.NewFlagSet("watch", flag.ContinueOnError)
 	interval := fs.Duration("interval", 2*time.Second, "poll interval (e.g. 2s)")
 	hookCmd := fs.String("hook-cmd", "", "shell command to run per event; event JSON is provided via stdin")
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if fs.NArg() != 0 {
-		return errors.New("usage: board watch <project> [--interval 2s] [--hook-cmd \"cmd\"]")
+	if fs.NArg() > 1 {
+		return errors.New("usage: board watch [project] [--interval 2s] [--hook-cmd \"cmd\"]")
+	}
+	project := ""
+	if fs.NArg() == 1 {
+		project = strings.TrimSpace(fs.Arg(0))
+	} else {
+		var err error
+		project, err = inferProjectFromGitRepo()
+		if err != nil {
+			return errors.New("usage: board watch [project] [--interval 2s] [--hook-cmd \"cmd\"] (or run inside a git repo to auto-detect)")
+		}
 	}
 	if project == "" {
 		return errors.New("project is required")
@@ -284,6 +348,7 @@ func printUsage() {
 	fmt.Println("  board issue create <project> --title ... --description ... [--assignee ...]")
 	fmt.Println("  board issue assign <project> <issue-id> --assignee ...")
 	fmt.Println("  board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]")
-	fmt.Println("  board issue list <project>")
-	fmt.Println("  board watch <project> [--interval 2s] [--hook-cmd \"cmd\"]")
+	fmt.Println("  board issue list [project] [--status ...] [--limit N]")
+	fmt.Println("  board issue next [project]    # same as --status todo --limit 1")
+	fmt.Println("  board watch [project] [--interval 2s] [--hook-cmd \"cmd\"]")
 }

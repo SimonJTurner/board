@@ -39,8 +39,9 @@ Transitions are unrestricted.
 - `board issue create <project> --title "..." --description "..." [--assignee "..."]`
 - `board issue assign <project> <issue-id> --assignee "..."`
 - `board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]`
-- `board issue list <project>`
-- `board watch <project> [--interval 2s] [--hook-cmd "your-command"]`
+- `board issue list [project] [--status <status>] [--limit <N>]` (if omitted, uses current git repo folder name)
+- `board issue next [project]` (same as `issue list --status todo --limit 1`)
+- `board watch [project] [--interval 2s] [--hook-cmd "your-command"]` (if omitted, uses current git repo folder name)
 
 ## Watch behavior
 `watch` emits JSON events to stdout and optionally invokes `--hook-cmd` with the same JSON payload on stdin.

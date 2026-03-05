@@ -102,6 +102,7 @@ func diffIssues(prev, curr BoardMeta, enabled map[string]bool) []Event {
 				IssueID:     cur.ID,
 				Number:      cur.Number,
 				Title:       cur.Title,
+				Status:      cur.Status,
 				OldAssignee: old.Assignee,
 				NewAssignee: cur.Assignee,
 				Timestamp:   now,
@@ -114,6 +115,7 @@ func diffIssues(prev, curr BoardMeta, enabled map[string]bool) []Event {
 				IssueID:   cur.ID,
 				Number:    cur.Number,
 				Title:     cur.Title,
+				Status:    cur.Status,
 				OldTitle:  old.Title,
 				NewTitle:  cur.Title,
 				Timestamp: now,
@@ -126,6 +128,7 @@ func diffIssues(prev, curr BoardMeta, enabled map[string]bool) []Event {
 				IssueID:   cur.ID,
 				Number:    cur.Number,
 				Title:     cur.Title,
+				Status:    cur.Status,
 				Timestamp: now,
 			})
 		}
@@ -146,7 +149,7 @@ func emitEvent(ev Event, hookCmd string) {
 		log.Printf("watch: marshal event failed: %v", err)
 		return
 	}
-	fmt.Println(string(b))
+	fmt.Println(formatEventLine(ev))
 	if hookCmd == "" {
 		return
 	}
@@ -155,5 +158,65 @@ func emitEvent(ev Event, hookCmd string) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("watch: hook failed (%s): %v; output=%s", hookCmd, err, string(out))
+	}
+}
+
+func formatEventLine(ev Event) string {
+	actionIcon := actionIconForEvent(ev.Type)
+	switch ev.Type {
+	case EventIssueStatusChanged:
+		return fmt.Sprintf(
+			"%s %s #%d %s  %s %s -> %s %s",
+			actionIcon,
+			ev.Project,
+			ev.Number,
+			ev.Title,
+			statusIcon(ev.OldStatus),
+			ev.OldStatus,
+			statusIcon(ev.NewStatus),
+			ev.NewStatus,
+		)
+	default:
+		return fmt.Sprintf(
+			"%s %s #%d %s  %s %s",
+			actionIcon,
+			ev.Project,
+			ev.Number,
+			ev.Title,
+			statusIcon(ev.Status),
+			ev.Status,
+		)
+	}
+}
+
+func actionIconForEvent(eventType string) string {
+	switch eventType {
+	case EventIssueCreated:
+		return "🆕"
+	case EventIssueStatusChanged:
+		return "🔄"
+	case EventIssueAssigneeChanged:
+		return "👤"
+	case EventIssueTitleChanged:
+		return "✏️"
+	case EventIssueDescriptionChanged:
+		return "📝"
+	default:
+		return "ℹ️"
+	}
+}
+
+func statusIcon(status string) string {
+	switch status {
+	case StatusTodo:
+		return "📌"
+	case StatusInProgress:
+		return "🚧"
+	case StatusDone:
+		return "✅"
+	case StatusCancelled:
+		return "⛔"
+	default:
+		return "❔"
 	}
 }

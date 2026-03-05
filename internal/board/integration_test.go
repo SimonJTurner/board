@@ -143,6 +143,98 @@ func TestCLIIntegration_InitUsesGitRepoNameWhenOmitted(t *testing.T) {
 	}
 }
 
+func TestCLIIntegration_IssueListUsesGitRepoNameWhenOmitted(t *testing.T) {
+	home := t.TempDir()
+	setHome(t, home)
+
+	repoRoot := filepath.Join(t.TempDir(), "repo-list-default")
+	if err := os.MkdirAll(repoRoot, 0o755); err != nil {
+		t.Fatalf("mkdir repo failed: %v", err)
+	}
+	cmd := exec.Command("git", "init")
+	cmd.Dir = repoRoot
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init failed: %v, out=%s", err, string(out))
+	}
+
+	runInDir(t, repoRoot, func() {
+		if _, err := runCLI(t, "init"); err != nil {
+			t.Fatalf("init without project failed: %v", err)
+		}
+		if _, err := runCLI(
+			t,
+			"issue", "create", "repo-list-default",
+			"--title", "Task Z",
+			"--description", "desc",
+		); err != nil {
+			t.Fatalf("issue create failed: %v", err)
+		}
+
+		out, err := runCLI(t, "issue", "list")
+		if err != nil {
+			t.Fatalf("issue list without project failed: %v", err)
+		}
+		assertContains(t, out, "REPO_LIST_DEFAULT_1001_task_z")
+	})
+}
+
+func TestCLIIntegration_IssueListFiltersAndLimitAndNext(t *testing.T) {
+	home := t.TempDir()
+	setHome(t, home)
+
+	if _, err := runCLI(t, "init", "demo"); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+	if _, err := runCLI(t, "issue", "create", "demo", "--title", "Task 1", "--description", "d1"); err != nil {
+		t.Fatalf("create 1 failed: %v", err)
+	}
+	if _, err := runCLI(t, "issue", "create", "demo", "--title", "Task 2", "--description", "d2"); err != nil {
+		t.Fatalf("create 2 failed: %v", err)
+	}
+	if _, err := runCLI(t, "issue", "create", "demo", "--title", "Task 3", "--description", "d3"); err != nil {
+		t.Fatalf("create 3 failed: %v", err)
+	}
+	if _, err := runCLI(
+		t,
+		"issue", "update", "demo", "DEMO_1001_task_1",
+		"--status", "done",
+	); err != nil {
+		t.Fatalf("update status failed: %v", err)
+	}
+
+	out, err := runCLI(t, "issue", "list", "demo", "--status", "todo")
+	if err != nil {
+		t.Fatalf("filtered list failed: %v", err)
+	}
+	assertContains(t, out, "DEMO_1002_task_2")
+	assertContains(t, out, "DEMO_1003_task_3")
+	assertNotContains(t, out, "DEMO_1001_task_1")
+
+	out, err = runCLI(t, "issue", "list", "demo", "--status", "todo", "--limit", "1")
+	if err != nil {
+		t.Fatalf("filtered + limit list failed: %v", err)
+	}
+	assertContains(t, out, "DEMO_1002_task_2")
+	assertNotContains(t, out, "DEMO_1003_task_3")
+
+	out, err = runCLI(t, "issue", "next", "demo")
+	if err != nil {
+		t.Fatalf("issue next failed: %v", err)
+	}
+	assertContains(t, out, "DEMO_1002_task_2")
+	assertNotContains(t, out, "DEMO_1003_task_3")
+	assertNotContains(t, out, "DEMO_1001_task_1")
+}
+
+func TestCLIIntegration_ProjectDeleteRequiresName(t *testing.T) {
+	home := t.TempDir()
+	setHome(t, home)
+
+	if _, err := runCLI(t, "project", "delete"); err == nil {
+		t.Fatal("expected project delete without name to fail")
+	}
+}
+
 func TestCLIIntegration_WatchExecHookReceivesEvents(t *testing.T) {
 	home := t.TempDir()
 	setHome(t, home)
@@ -242,6 +334,13 @@ func assertContains(t *testing.T, got, want string) {
 	t.Helper()
 	if !strings.Contains(got, want) {
 		t.Fatalf("expected %q to contain %q", got, want)
+	}
+}
+
+func assertNotContains(t *testing.T, got, want string) {
+	t.Helper()
+	if strings.Contains(got, want) {
+		t.Fatalf("expected %q to not contain %q", got, want)
 	}
 }
 
