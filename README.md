@@ -35,7 +35,7 @@ Transitions are unrestricted.
 - `board project <name>` (alias for init)
 - `board project list`
 - `board project delete <name>`
-- `board update [--repo /path/to/agent-board]`
+- `board update [--repo /path/to/agent-board] [--release-repo owner/repo]`
 - `board issue create <project> --title "..." --description "..." [--assignee "..."]`
 - `board issue assign <project> <issue-id> --assignee "..."`
 - `board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]`
@@ -84,13 +84,31 @@ From inside this repo:
 board update
 ```
 
-From anywhere:
+From anywhere via releases:
+```bash
+BOARD_RELEASE_REPO=owner/repo board update
+```
+
+Or point directly at the repo:
 ```bash
 board update --repo /path/to/agent-board
 ```
 
-Or set once:
-```bash
-export BOARD_REPO=/path/to/agent-board
-board update
+## GitHub releases
+Create a GitHub release (semantic tag such as `v0.2.0`) and upload the binaries produced by `.github/workflows/release.yml`. Assets must be named `board-<GOOS>-<GOARCH>` (with `.exe` on Windows), e.g.:
 ```
+board-linux-amd64
+board-linux-arm64
+board-darwin-amd64
+board-darwin-arm64
+board-windows-amd64.exe
+```
+
+Install by downloading the matching asset and moving it into your `PATH`:
+```bash
+curl -L https://github.com/<owner>/agent-board/releases/latest/download/board-$(go env GOOS)-$(go env GOARCH) -o board
+chmod +x board
+mv board /usr/local/bin/
+```
+
+The release workflow runs `go test ./...`, cross-compiles these artifacts, and uploads them for every pushed tag in `.github/workflows/release.yml`. With releases published, `board update` without `--repo` pulls the right binary from GitHub automatically (or you can pass `BOARD_RELEASE_REPO` to target a different repo).
