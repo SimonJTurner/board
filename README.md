@@ -75,7 +75,9 @@ make build    # builds ./cmd/board -> board
 make test     # runs go test ./...
 make install  # runs go install ./cmd/board
 make update   # runs board update
-make release  # reminder: tag and push so GitHub Actions publishes binaries
+make release        # tags/pushes a new semantic version (default patch bump)
+make release-major  # bump major version (can still override via MAJOR/MINOR/PATCH)
+make release-minor  # bump minor version (can still override via MAJOR/MINOR/PATCH)
 ```
 Ensure your Go bin directory is in `PATH`.
 
@@ -113,5 +115,7 @@ mv board /usr/local/bin/
 ```
 
 The release workflow runs `go test ./...`, cross-compiles these artifacts, and uploads them for every pushed tag in `.github/workflows/release.yml`. With releases published, `board update` without `--repo` pulls the right binary from GitHub automatically (or you can pass `BOARD_RELEASE_REPO` to target a different repo).
+
+`make release` / `scripts/release.sh` now rounds up the latest `vX.Y.Z` tag, bumps patch, tags and pushes. Use `make release-minor` or `make release-major` to bump the minor/major version before tagging. Override the next version manually with `MAJOR`, `MINOR`, or `PATCH`, e.g. `MAJOR=1 PATCH=0 make release`.
 
 Project archives live in `~/.board/_archive` so they are skipped from `board project list` unless you pass `--archived`. The new `board project archive <name>` command moves the project into that folder for safekeeping.

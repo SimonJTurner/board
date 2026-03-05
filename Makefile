@@ -18,4 +18,10 @@ update:
 	board update
 
 release:
-	@echo "Create GitHub release tag and push; webhook workflow builds binaries."
+	MAJOR=$(MAJOR) MINOR=$(MINOR) PATCH=$(PATCH) scripts/release.sh patch
+
+release-major:
+	MAJOR=$(MAJOR) MINOR=$(MINOR) PATCH=$(PATCH) scripts/release.sh major
+
+release-minor:
+	MAJOR=$(MAJOR) MINOR=$(MINOR) PATCH=$(PATCH) scripts/release.sh minor
