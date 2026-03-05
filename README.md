@@ -67,14 +67,15 @@ Hook failures are best-effort and logged; they do not stop watch execution.
 
 Note: watch currently diffs `board.json` metadata. Manual edits directly to issue markdown files may not be detected unless metadata is also updated through CLI commands.
 
-## Build
-```bash
-go build -o board ./cmd/board
-```
+## Build/test/install helpers
+Run `make` targets instead of remembering each Go flag.
 
-## Install (run from anywhere)
 ```bash
-go install ./cmd/board
+make build    # builds ./cmd/board -> board
+make test     # runs go test ./...
+make install  # runs go install ./cmd/board
+make update   # runs board update
+make release  # reminder: tag and push so GitHub Actions publishes binaries
 ```
 Ensure your Go bin directory is in `PATH`.
 
