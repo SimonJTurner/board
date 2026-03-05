@@ -83,22 +83,12 @@ func inferProjectFromGitRepo() (string, error) {
 
 func runProject(store *Store, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: board project <name>|list|delete <name>")
+		return errors.New("usage: board project <list|delete|archive> ...")
 	}
-	if args[0] == "list" {
-		if len(args) != 1 {
-			return errors.New("usage: board project list")
-		}
-		projects, err := store.ListProjects()
-		if err != nil {
-			return err
-		}
-		for _, project := range projects {
-			fmt.Println(project)
-		}
-		return nil
-	}
-	if args[0] == "delete" {
+	switch args[0] {
+	case "list":
+		return runProjectList(store, args[1:])
+	case "delete":
 		if len(args) != 2 {
 			return errors.New("usage: board project delete <name>")
 		}
@@ -107,11 +97,37 @@ func runProject(store *Store, args []string) error {
 		}
 		fmt.Printf("deleted project %q\n", args[1])
 		return nil
+	case "archive":
+		if len(args) != 2 {
+			return errors.New("usage: board project archive <name>")
+		}
+		if err := store.ArchiveProject(args[1]); err != nil {
+			return err
+		}
+		fmt.Printf("archived project %q\n", args[1])
+		return nil
+	default:
+		return fmt.Errorf("unknown project command: %s", args[0])
 	}
-	if len(args) != 1 {
-		return errors.New("usage: board project <name>")
+}
+
+func runProjectList(store *Store, args []string) error {
+	fs := flag.NewFlagSet("project list", flag.ContinueOnError)
+	includeArchived := fs.Bool("archived", false, "include archived projects")
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
-	return runInit(store, args)
+	if fs.NArg() != 0 {
+		return errors.New("usage: board project list [--archived]")
+	}
+	projects, err := store.ListProjects(*includeArchived)
+	if err != nil {
+		return err
+	}
+	for _, project := range projects {
+		fmt.Println(project)
+	}
+	return nil
 }
 
 func runIssue(store *Store, args []string) error {
@@ -350,9 +366,9 @@ func printUsage() {
 	fmt.Println("")
 	fmt.Println("Commands:")
 	fmt.Println("  board init [project]          # uses git repo name when omitted")
-	fmt.Println("  board project <name>          # alias for init")
-	fmt.Println("  board project list")
+	fmt.Println("  board project list [--archived]")
 	fmt.Println("  board project delete <name>")
+	fmt.Println("  board project archive <name>")
 	fmt.Println("  board update [--repo /path/to/agent-board]")
 	fmt.Println("  board issue create <project> --title ... --description ... [--assignee ...]")
 	fmt.Println("  board issue assign <project> <issue-id> --assignee ...")

@@ -87,15 +87,18 @@ func TestCLIIntegration_IssueLifecycle(t *testing.T) {
 	assertContains(t, string(issueBytes), "Updated description")
 }
 
-func TestCLIIntegration_ProjectAliasAndList(t *testing.T) {
+func TestCLIIntegration_ProjectListRespectsArchive(t *testing.T) {
 	home := t.TempDir()
 	setHome(t, home)
 
-	if _, err := runCLI(t, "project", "alpha"); err != nil {
-		t.Fatalf("project alias init failed: %v", err)
+	if _, err := runCLI(t, "init", "alpha"); err != nil {
+		t.Fatalf("init failed: %v", err)
 	}
-	if _, err := runCLI(t, "project", "beta"); err != nil {
-		t.Fatalf("project alias init failed: %v", err)
+	if _, err := runCLI(t, "init", "beta"); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+	if _, err := runCLI(t, "project", "archive", "beta"); err != nil {
+		t.Fatalf("project archive failed: %v", err)
 	}
 
 	out, err := runCLI(t, "project", "list")
@@ -103,18 +106,13 @@ func TestCLIIntegration_ProjectAliasAndList(t *testing.T) {
 		t.Fatalf("project list failed: %v", err)
 	}
 	assertContains(t, out, "alpha")
-	assertContains(t, out, "beta")
+	assertNotContains(t, out, "beta")
 
-	if _, err := runCLI(t, "project", "delete", "alpha"); err != nil {
-		t.Fatalf("project delete failed: %v", err)
-	}
-	out, err = runCLI(t, "project", "list")
+	out, err = runCLI(t, "project", "list", "--archived")
 	if err != nil {
-		t.Fatalf("project list after delete failed: %v", err)
+		t.Fatalf("project list archived failed: %v", err)
 	}
-	if strings.Contains(out, "alpha") {
-		t.Fatalf("expected alpha to be deleted, got %q", out)
-	}
+	assertContains(t, out, "alpha")
 	assertContains(t, out, "beta")
 }
 

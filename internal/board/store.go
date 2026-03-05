@@ -216,7 +216,7 @@ func (s *Store) LoadBoard(project string) (BoardMeta, error) {
 	return meta, err
 }
 
-func (s *Store) ListProjects() ([]string, error) {
+func (s *Store) ListProjects(includeArchived bool) ([]string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
@@ -236,12 +236,81 @@ func (s *Store) ListProjects() ([]string, error) {
 			continue
 		}
 		project := entry.Name()
+		if project == archiveDirName {
+			if includeArchived {
+				archives, _ := s.listArchiveProjects()
+				projects = append(projects, archives...)
+			}
+			continue
+		}
 		if _, err := os.Stat(filepath.Join(root, project, boardFileName)); err == nil {
 			projects = append(projects, project)
 		}
 	}
 	sort.Strings(projects)
 	return projects, nil
+}
+
+const archiveDirName = "_archive"
+
+func (s *Store) listArchiveProjects() ([]string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	root := filepath.Join(home, boardDirName, archiveDirName)
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+	projects := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		project := entry.Name()
+		if _, err := os.Stat(filepath.Join(root, project, boardFileName)); err == nil {
+			projects = append(projects, project)
+		}
+	}
+	sort.Strings(projects)
+	return projects, nil
+}
+
+func (s *Store) ArchiveProject(project string) error {
+	projectPath, err := s.projectPath(project)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(projectPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("project not found: %s", project)
+		}
+		return err
+	}
+	archiveRoot, err := s.archivePath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(archiveRoot, 0o755); err != nil {
+		return err
+	}
+	dest := filepath.Join(archiveRoot, project)
+	if _, err := os.Stat(dest); err == nil {
+		return fmt.Errorf("archive already contains %s", project)
+	}
+	return os.Rename(projectPath, dest)
+}
+
+func (s *Store) archivePath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, boardDirName, archiveDirName), nil
 }
 
 func (s *Store) DeleteProject(project string) error {

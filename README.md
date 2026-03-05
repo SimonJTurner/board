@@ -32,9 +32,9 @@ Transitions are unrestricted.
 
 ## Commands
 - `board init [project]` (if omitted, uses current git repo folder name)
-- `board project <name>` (alias for init)
-- `board project list`
+- `board project list [--archived]`
 - `board project delete <name>`
+- `board project archive <name>`
 - `board update [--repo /path/to/agent-board] [--release-repo owner/repo]`
 - `board issue create <project> --title "..." --description "..." [--assignee "..."]`
 - `board issue assign <project> <issue-id> --assignee "..."`
@@ -112,3 +112,5 @@ mv board /usr/local/bin/
 ```
 
 The release workflow runs `go test ./...`, cross-compiles these artifacts, and uploads them for every pushed tag in `.github/workflows/release.yml`. With releases published, `board update` without `--repo` pulls the right binary from GitHub automatically (or you can pass `BOARD_RELEASE_REPO` to target a different repo).
+
+Project archives live in `~/.board/_archive` so they are skipped from `board project list` unless you pass `--archived`. The new `board project archive <name>` command moves the project into that folder for safekeeping.
