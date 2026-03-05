@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -40,20 +42,48 @@ func Run(args []string) error {
 }
 
 func runInit(store *Store, args []string) error {
-	if len(args) != 1 {
-		return errors.New("usage: board init <project>")
+	if len(args) > 1 {
+		return errors.New("usage: board init [project]")
 	}
-	projectPath, err := store.InitProject(args[0])
+	project := ""
+	if len(args) == 1 {
+		project = strings.TrimSpace(args[0])
+	} else {
+		var err error
+		project, err = inferProjectFromGitRepo()
+		if err != nil {
+			return errors.New("usage: board init [project] (or run inside a git repo to auto-detect)")
+		}
+	}
+	projectPath, err := store.InitProject(project)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("initialized project %q at %s\n", args[0], projectPath)
+	fmt.Printf("initialized project %q at %s\n", project, projectPath)
 	return nil
+}
+
+func inferProjectFromGitRepo() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	root := strings.TrimSpace(string(out))
+	if root == "" {
+		return "", errors.New("empty git root")
+	}
+	project := filepath.Base(root)
+	project = strings.TrimSpace(project)
+	if project == "" || project == "." || project == string(filepath.Separator) {
+		return "", errors.New("invalid git repo name")
+	}
+	return project, nil
 }
 
 func runProject(store *Store, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: board project <name>|list")
+		return errors.New("usage: board project <name>|list|delete <name>")
 	}
 	if args[0] == "list" {
 		if len(args) != 1 {
@@ -66,6 +96,16 @@ func runProject(store *Store, args []string) error {
 		for _, project := range projects {
 			fmt.Println(project)
 		}
+		return nil
+	}
+	if args[0] == "delete" {
+		if len(args) != 2 {
+			return errors.New("usage: board project delete <name>")
+		}
+		if err := store.DeleteProject(args[1]); err != nil {
+			return err
+		}
+		fmt.Printf("deleted project %q\n", args[1])
 		return nil
 	}
 	if len(args) != 1 {
@@ -236,9 +276,10 @@ func printUsage() {
 	fmt.Println("board - local trello-like board for agents")
 	fmt.Println("")
 	fmt.Println("Commands:")
-	fmt.Println("  board init <project>")
+	fmt.Println("  board init [project]          # uses git repo name when omitted")
 	fmt.Println("  board project <name>          # alias for init")
 	fmt.Println("  board project list")
+	fmt.Println("  board project delete <name>")
 	fmt.Println("  board update [--repo /path/to/agent-board]")
 	fmt.Println("  board issue create <project> --title ... --description ... [--assignee ...]")
 	fmt.Println("  board issue assign <project> <issue-id> --assignee ...")

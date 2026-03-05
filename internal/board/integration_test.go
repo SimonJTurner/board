@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -103,6 +104,43 @@ func TestCLIIntegration_ProjectAliasAndList(t *testing.T) {
 	}
 	assertContains(t, out, "alpha")
 	assertContains(t, out, "beta")
+
+	if _, err := runCLI(t, "project", "delete", "alpha"); err != nil {
+		t.Fatalf("project delete failed: %v", err)
+	}
+	out, err = runCLI(t, "project", "list")
+	if err != nil {
+		t.Fatalf("project list after delete failed: %v", err)
+	}
+	if strings.Contains(out, "alpha") {
+		t.Fatalf("expected alpha to be deleted, got %q", out)
+	}
+	assertContains(t, out, "beta")
+}
+
+func TestCLIIntegration_InitUsesGitRepoNameWhenOmitted(t *testing.T) {
+	home := t.TempDir()
+	setHome(t, home)
+
+	repoRoot := filepath.Join(t.TempDir(), "my-repo-name")
+	if err := os.MkdirAll(repoRoot, 0o755); err != nil {
+		t.Fatalf("mkdir repo failed: %v", err)
+	}
+	cmd := exec.Command("git", "init")
+	cmd.Dir = repoRoot
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init failed: %v, out=%s", err, string(out))
+	}
+
+	runInDir(t, repoRoot, func() {
+		if _, err := runCLI(t, "init"); err != nil {
+			t.Fatalf("init without project failed: %v", err)
+		}
+	})
+
+	if _, err := os.Stat(filepath.Join(home, ".board", "my-repo-name", "board.json")); err != nil {
+		t.Fatalf("expected board.json for auto-detected project: %v", err)
+	}
 }
 
 func TestCLIIntegration_WatchExecHookReceivesEvents(t *testing.T) {
@@ -217,4 +255,19 @@ func waitFor(t *testing.T, timeout time.Duration, condition func() bool) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatalf("condition not met before timeout (%s)", timeout)
+}
+
+func runInDir(t *testing.T, dir string, fn func()) {
+	t.Helper()
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd failed: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir failed: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(orig)
+	})
+	fn()
 }

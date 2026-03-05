@@ -244,6 +244,20 @@ func (s *Store) ListProjects() ([]string, error) {
 	return projects, nil
 }
 
+func (s *Store) DeleteProject(project string) error {
+	projectPath, err := s.projectPath(project)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(projectPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("project not found: %s", project)
+		}
+		return err
+	}
+	return os.RemoveAll(projectPath)
+}
+
 func (s *Store) loadBoard(project string) (string, BoardMeta, error) {
 	projectPath, err := s.projectPath(project)
 	if err != nil {

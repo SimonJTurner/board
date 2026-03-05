@@ -31,9 +31,10 @@ Allowed statuses:
 Transitions are unrestricted.
 
 ## Commands
-- `board init <project>`
+- `board init [project]` (if omitted, uses current git repo folder name)
 - `board project <name>` (alias for init)
 - `board project list`
+- `board project delete <name>`
 - `board update [--repo /path/to/agent-board]`
 - `board issue create <project> --title "..." --description "..." [--assignee "..."]`
 - `board issue assign <project> <issue-id> --assignee "..."`
