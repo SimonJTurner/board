@@ -1,6 +1,14 @@
 # agent-board
 
+[![Go 1.24+](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/owner/agent-board?include_prereleases)](https://github.com/owner/agent-board/releases)
+
 Small local Go CLI for Trello-style issue tracking for agent workflows.
+
+## Requirements
+
+- **Go 1.24+** (see [go.mod](go.mod))
 
 ## Storage
 Each project lives at:
@@ -119,3 +127,7 @@ The release workflow runs `go test ./...`, cross-compiles these artifacts, and u
 `make release` / `scripts/release.sh` now rounds up the latest `vX.Y.Z` tag, bumps patch, tags and pushes. Use `make release-minor` or `make release-major` to bump the minor/major version before tagging. Override the next version manually with `MAJOR`, `MINOR`, or `PATCH`, e.g. `MAJOR=1 PATCH=0 make release`.
 
 Project archives live in `~/.board/_archive` so they are skipped from `board project list` unless you pass `--archived`. The new `board project archive <name>` command moves the project into that folder for safekeeping.
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
