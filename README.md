@@ -2,7 +2,7 @@
 
 [![Go 1.24+](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/owner/agent-board?include_prereleases)](https://github.com/owner/agent-board/releases)
+[![Release](https://img.shields.io/github/v/release/SimonJTurner/board?include_prereleases)](https://github.com/SimonJTurner/board/releases)
 
 Small local Go CLI for Trello-style issue tracking for agent workflows.
 
@@ -43,7 +43,7 @@ Transitions are unrestricted.
 - `board project list [--archived]`
 - `board project delete <name>`
 - `board project archive <name>`
-- `board update [--repo /path/to/agent-board] [--release-repo owner/repo]`
+- `board update [--repo /path/to/agent-board] [--release-repo SimonJTurner/board]`
 - `board issue create <project> --title "..." --description "..." [--assignee "..."]`
 - `board issue assign <project> <issue-id> --assignee "..."`
 - `board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]`
@@ -97,7 +97,7 @@ board update
 
 From anywhere via releases:
 ```bash
-BOARD_RELEASE_REPO=owner/repo board update
+BOARD_RELEASE_REPO=SimonJTurner/board board update
 ```
 
 Or point directly at the repo:
@@ -117,7 +117,7 @@ board-windows-amd64.exe
 
 Install by downloading the matching asset and moving it into your `PATH`:
 ```bash
-curl -L https://github.com/<owner>/agent-board/releases/latest/download/board-$(go env GOOS)-$(go env GOARCH) -o board
+curl -L https://github.com/SimonJTurner/board/releases/latest/download/board-$(go env GOOS)-$(go env GOARCH) -o board
 chmod +x board
 mv board /usr/local/bin/
 ```
