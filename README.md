@@ -58,7 +58,7 @@ Transitions are unrestricted.
 - `board project list [--archived]`
 - `board project delete <name>`
 - `board project archive <name>`
-- `board update [--repo /path/to/agent-board] [--release-repo SimonJTurner/board]`
+- `board update [--repo /path/to/board] [--release-repo SimonJTurner/board]`
 - `board issue create <project> --title "..." --description "..." [--assignee "..."]`
 - `board issue assign <project> <issue-id> --assignee "..."`
 - `board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]`
@@ -118,7 +118,7 @@ Set `BOARD_DEBUG=1` to show underlying errors when a project or issue is not fou
 
 Or point directly at the repo:
 ```bash
-board update --repo /path/to/agent-board
+board update --repo /path/to/board
 ```
 
 ## GitHub releases
