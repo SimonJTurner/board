@@ -28,7 +28,6 @@ func TestCLIIntegration_IssueLifecycle(t *testing.T) {
 		"issue", "create", "demo",
 		"--title", "Create some feature",
 		"--description", "Initial description",
-		"--assignee", "agent-a",
 	); err != nil {
 		t.Fatalf("issue create failed: %v", err)
 	}
@@ -39,7 +38,6 @@ func TestCLIIntegration_IssueLifecycle(t *testing.T) {
 	}
 	assertContains(t, listOut, "DEMO_1001_create_some_feature")
 	assertContains(t, listOut, "todo")
-	assertContains(t, listOut, "agent-a")
 
 	if _, err := runCLI(
 		t,
@@ -92,6 +90,15 @@ func TestCLIIntegration_IssueLifecycle(t *testing.T) {
 	assertContains(t, string(issueBytes), "status: in_progress")
 	assertContains(t, string(issueBytes), "assignee: agent-b")
 	assertContains(t, string(issueBytes), "Updated description")
+
+	// assign when already assigned to someone else must fail
+	_, err = runCLI(t, "issue", "assign", "demo", "DEMO_1001_create_some_feature", "--assignee", "agent-c")
+	if err == nil {
+		t.Fatal("expected assign to fail when issue already assigned to another user")
+	}
+	if !strings.Contains(err.Error(), "issue is already assigned to") || !strings.Contains(err.Error(), "agent-b") {
+		t.Fatalf("expected error message about already assigned to agent-b, got: %v", err)
+	}
 }
 
 func TestCLIIntegration_ProjectListRespectsArchive(t *testing.T) {

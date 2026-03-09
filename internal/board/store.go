@@ -124,6 +124,9 @@ func (s *Store) AssignIssue(project, id, assignee string, status *string) (Issue
 	if doc.Assignee == assignee {
 		return IssueMeta{}, "", fmt.Errorf("issue %q is already assigned to %q", id, assignee)
 	}
+	if doc.Assignee != "" {
+		return IssueMeta{}, "", fmt.Errorf("issue is already assigned to %q", doc.Assignee)
+	}
 	oldAssignee := doc.Assignee
 	doc.Assignee = assignee
 	doc.UpdatedAt = time.Now().UTC()
