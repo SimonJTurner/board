@@ -146,6 +146,12 @@ By default, `board update` fetches the latest binary from the GitHub releases (S
 board update
 ```
 
+**If you get `zsh: exec format error: board`** — the binary in your PATH is for a different OS/arch (e.g. a Linux binary on macOS). You can’t run `board update` until it’s fixed. Reinstall on this machine with:
+```bash
+curl -fsSL https://raw.githubusercontent.com/SimonJTurner/board/main/scripts/install.sh | sh
+```
+Or, if you use Go: `go install github.com/SimonJTurner/board/cmd/board@latest`
+
 To use a different release repo (e.g. a fork):
 ```bash
 BOARD_RELEASE_REPO=owner/repo board update

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,10 +45,15 @@ func runUpdate(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := downloadReleaseAsset(rRepo, asset); err != nil {
+	version, err := downloadReleaseAsset(rRepo, asset)
+	if err != nil {
 		return err
 	}
-	fmt.Printf("updated board executable from release %s (%s)\n", rRepo, asset)
+	if version != "" {
+		fmt.Printf("updated board to %s from %s (%s)\n", version, rRepo, asset)
+	} else {
+		fmt.Printf("updated board executable from release %s (%s)\n", rRepo, asset)
+	}
 	return nil
 }
 
@@ -128,39 +134,59 @@ func releaseAssetName() (string, error) {
 	return fmt.Sprintf("board-%s-%s%s", runtime.GOOS, runtime.GOARCH, suffix), nil
 }
 
-func downloadReleaseAsset(repo, asset string) error {
-	url := fmt.Sprintf("%s/%s/releases/latest/download/%s", releaseBaseURL, repo, asset)
+// downloadReleaseAsset fetches the asset from the repo's latest release, installs it,
+// and returns the release tag (e.g. "v0.2.0") from the redirect URL, or "" if not found.
+func downloadReleaseAsset(repo, asset string) (version string, err error) {
+	downloadURL := fmt.Sprintf("%s/%s/releases/latest/download/%s", releaseBaseURL, repo, asset)
 	client := http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(url)
+	resp, err := client.Get(downloadURL)
 	if err != nil {
-		return fmt.Errorf("failed to download release asset: %w", err)
+		return "", fmt.Errorf("failed to download release asset: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("release asset request returned %d", resp.StatusCode)
+		return "", fmt.Errorf("release asset request returned %d", resp.StatusCode)
+	}
+	if v := parseReleaseTagFromURL(resp.Request.URL); v != "" {
+		version = v
 	}
 	tmp, err := os.CreateTemp("", "board-update-*")
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer os.Remove(tmp.Name())
 	if _, err := io.Copy(tmp, resp.Body); err != nil {
-		return err
+		return "", err
 	}
 	if err := tmp.Chmod(0o755); err != nil {
-		return err
+		return "", err
 	}
 	if err := tmp.Close(); err != nil {
-		return err
+		return "", err
 	}
 	exe, err := os.Executable()
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := os.Rename(tmp.Name(), exe); err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return version, nil
+}
+
+// parseReleaseTagFromURL extracts the release tag from a GitHub release download URL,
+// e.g. "https://github.com/owner/repo/releases/download/v0.2.0/board-darwin-arm64" -> "v0.2.0".
+func parseReleaseTagFromURL(u *url.URL) string {
+	path := strings.TrimPrefix(u.Path, "/")
+	// path is like "owner/repo/releases/download/TAG/asset"
+	prefix := "releases/download/"
+	if idx := strings.Index(path, prefix); idx >= 0 {
+		rest := path[idx+len(prefix):]
+		if slash := strings.IndexByte(rest, '/'); slash >= 0 {
+			return rest[:slash]
+		}
+	}
+	return ""
 }
 
 func validateRepoPath(path string) (string, error) {
