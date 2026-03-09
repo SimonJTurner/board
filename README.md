@@ -6,6 +6,21 @@
 
 Small local Go CLI for Trello-style issue tracking for agent workflows.
 
+## Quick start
+
+Install from this repo (requires [Go 1.24+](#requirements)):
+
+```bash
+go install ./cmd/board
+```
+
+Or [download a release](https://github.com/SimonJTurner/board/releases). Then:
+
+```bash
+board init
+board issue next
+```
+
 ## Requirements
 
 - **Go 1.24+** (see [go.mod](go.mod))
