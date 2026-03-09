@@ -116,25 +116,16 @@ func inferReleaseRepoFromGit() (string, error) {
 	return repo, nil
 }
 
-// releaseAssetName returns the GitHub release asset name for the current host
-// (e.g. board-darwin-arm64). Uses "go env GOOS/GOARCH" when go is available so
-// we always download the binary for the machine we're on, not the running binary's
-// build target (which would be wrong if the binary was built for another OS/arch).
+// releaseAssetName returns the GitHub release asset name for the running binary's
+// platform (e.g. board-darwin-arm64). We use runtime.GOOS/GOARCH, not "go env",
+// because we overwrite the current executable—so we must fetch the same OS/arch
+// as the binary that is running, or the next run will be the wrong format.
 func releaseAssetName() (string, error) {
-	goos, goarch := runtime.GOOS, runtime.GOARCH
-	if path, err := exec.LookPath("go"); err == nil && path != "" {
-		if out, err := exec.Command("go", "env", "GOOS").Output(); err == nil {
-			goos = strings.TrimSpace(string(out))
-		}
-		if out, err := exec.Command("go", "env", "GOARCH").Output(); err == nil {
-			goarch = strings.TrimSpace(string(out))
-		}
-	}
 	suffix := ""
-	if goos == "windows" {
+	if runtime.GOOS == "windows" {
 		suffix = ".exe"
 	}
-	return fmt.Sprintf("board-%s-%s%s", goos, goarch, suffix), nil
+	return fmt.Sprintf("board-%s-%s%s", runtime.GOOS, runtime.GOARCH, suffix), nil
 }
 
 func downloadReleaseAsset(repo, asset string) error {
