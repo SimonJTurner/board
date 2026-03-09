@@ -114,7 +114,7 @@ func (s *Store) AssignIssue(project, id, assignee string, status *string) (Issue
 	}
 	idx := findIssueIndex(meta.Issues, id)
 	if idx == -1 {
-		return IssueMeta{}, "", fmt.Errorf("issue not found: %s", id)
+		return IssueMeta{}, "", issueNotFoundErr(project, id)
 	}
 	m := meta.Issues[idx]
 	doc, err := s.readIssue(projectPath, m.File)
@@ -154,7 +154,7 @@ func (s *Store) UpdateIssue(project, id string, updates IssueUpdateInput) (Issue
 	}
 	idx := findIssueIndex(meta.Issues, id)
 	if idx == -1 {
-		return IssueMeta{}, IssueMeta{}, fmt.Errorf("issue not found: %s", id)
+		return IssueMeta{}, IssueMeta{}, issueNotFoundErr(project, id)
 	}
 	old := meta.Issues[idx]
 	newMeta := old
@@ -353,7 +353,7 @@ func (s *Store) GetIssue(project, id string) (IssueDoc, IssueMeta, error) {
 	}
 	idx := findIssueIndex(meta.Issues, id)
 	if idx == -1 {
-		return IssueDoc{}, IssueMeta{}, fmt.Errorf("issue not found: %s", id)
+		return IssueDoc{}, IssueMeta{}, issueNotFoundErr(project, id)
 	}
 	m := meta.Issues[idx]
 	doc, err := s.readIssue(projectPath, m.File)
@@ -370,7 +370,7 @@ func (s *Store) GetIssueFilePath(project, id string) (string, error) {
 	}
 	idx := findIssueIndex(meta.Issues, id)
 	if idx == -1 {
-		return "", fmt.Errorf("issue not found: %s", id)
+		return "", issueNotFoundErr(project, id)
 	}
 	return filepath.Join(projectPath, meta.Issues[idx].File), nil
 }
@@ -382,9 +382,26 @@ func (s *Store) loadBoard(project string) (string, BoardMeta, error) {
 	}
 	meta, err := s.readBoard(projectPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return "", BoardMeta{}, projectNotFoundErr(project, err)
+		}
 		return "", BoardMeta{}, err
 	}
 	return projectPath, meta, nil
+}
+
+// projectNotFoundErr returns a user-friendly error when the project is missing,
+// or the raw error when BOARD_DEBUG is set.
+func projectNotFoundErr(project string, underlying error) error {
+	if os.Getenv("BOARD_DEBUG") != "" {
+		return underlying
+	}
+	return fmt.Errorf("project %q not found; run: board init %s", project, project)
+}
+
+// issueNotFoundErr returns a user-friendly message for missing issues.
+func issueNotFoundErr(project, id string) error {
+	return fmt.Errorf("issue %q not found in project %q; list issues with: board issue list %s", id, project, project)
 }
 
 func (s *Store) loadBoardForWrite(project string) (string, BoardMeta, error) {

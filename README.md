@@ -114,6 +114,7 @@ From anywhere via releases:
 ```bash
 BOARD_RELEASE_REPO=SimonJTurner/board board update
 ```
+Set `BOARD_DEBUG=1` to show underlying errors when a project or issue is not found (default is a short hint, e.g. run `board init <project>`).
 
 Or point directly at the repo:
 ```bash
