@@ -79,6 +79,28 @@ Transitions are unrestricted.
 - `board issue next [project] [--json]` (same as `issue list --status todo --limit 1`)
 - `board issue show [project] <issue-id> [--json]` (full issue including description)
 - `board watch [project] [--interval 2s] [--hook-cmd "your-command"] [--plain]` (if omitted, uses current git repo folder name)
+- `board completion <bash|zsh>` — print shell completion script
+
+## Shell completion
+
+Tab completion is available for commands, subcommands, project names, issue IDs, and flags.
+
+**Bash:** add to your `~/.bashrc` or `~/.bash_profile`:
+```bash
+source <(board completion bash)
+```
+
+**Zsh:** add to your `~/.zshrc`:
+```bash
+source <(board completion zsh)
+```
+
+**From this repo:** you can source the wrapper script (detects bash vs zsh):
+```bash
+source scripts/board-completion.sh
+```
+
+Requires `board` to be on your PATH. Completions use your board storage (e.g. `~/.board` or `BOARD_STORAGE_DIR`) for project and issue suggestions.
 
 ## Watch behavior
 By default, `watch` launches an interactive TUI:

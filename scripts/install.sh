@@ -61,6 +61,32 @@ if ! curl -fsSL "${BASE_URL}/${FILENAME}" -o "${TMP}/board"; then
 fi
 
 chmod +x "${TMP}/board"
+
+# Verify downloaded binary matches this machine (catches wrong-arch installs e.g. from CI/shared paths)
+if command -v file >/dev/null 2>&1; then
+  FILE_TYPE=$(file "${TMP}/board" 2>/dev/null || true)
+  case "$GOOS" in
+    darwin)
+      if ! echo "$FILE_TYPE" | grep -q "Mach-O"; then
+        echo "Downloaded binary is not a macOS executable (got: $FILE_TYPE). Run this script on your Mac, not in a container or CI." >&2
+        exit 1
+      fi
+      ;;
+    linux)
+      if ! echo "$FILE_TYPE" | grep -q "ELF"; then
+        echo "Downloaded binary is not a Linux executable (got: $FILE_TYPE). Run this script on the target machine." >&2
+        exit 1
+      fi
+      ;;
+    windows)
+      if ! echo "$FILE_TYPE" | grep -q "PE32"; then
+        echo "Downloaded binary is not a Windows executable (got: $FILE_TYPE). Run this script on the target machine." >&2
+        exit 1
+      fi
+      ;;
+  esac
+fi
+
 if [ "$GOOS" = "windows" ]; then
   mv "${TMP}/board" "${BIN_DIR}/board.exe"
   echo "Installed to ${BIN_DIR}/board.exe"

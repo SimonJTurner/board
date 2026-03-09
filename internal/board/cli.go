@@ -34,6 +34,10 @@ func Run(args []string) error {
 		return runIssue(store, args[1:])
 	case "watch":
 		return runWatch(store, args[1:])
+	case "completion":
+		return runCompletion(store, args[1:])
+	case "__complete":
+		return runComplete(store, args[1:])
 	case "help", "-h", "--help":
 		printUsage()
 		return nil
@@ -508,4 +512,5 @@ func printUsage() {
 	fmt.Println("  board issue next [project] [--json]   # same as list --status todo --limit 1")
 	fmt.Println("  board issue show [project] <issue-id> [--json]")
 	fmt.Println("  board watch [project] [--interval 2s] [--hook-cmd \"cmd\"] [--plain]")
+	fmt.Println("  board completion <bash|zsh>   # print shell completion script")
 }
