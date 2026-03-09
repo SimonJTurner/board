@@ -386,7 +386,7 @@ func (s *Store) loadBoard(project string) (string, BoardMeta, error) {
 	meta, err := s.readBoard(projectPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", BoardMeta{}, projectNotFoundErr(project, err)
+			return "", BoardMeta{}, s.projectNotFoundErr(project, err)
 		}
 		return "", BoardMeta{}, err
 	}
@@ -394,12 +394,17 @@ func (s *Store) loadBoard(project string) (string, BoardMeta, error) {
 }
 
 // projectNotFoundErr returns a user-friendly error when the project is missing,
-// or the raw error when BOARD_DEBUG is set.
-func projectNotFoundErr(project string, underlying error) error {
+// or the raw error when BOARD_DEBUG is set. It includes the list of available boards.
+func (s *Store) projectNotFoundErr(project string, underlying error) error {
 	if os.Getenv("BOARD_DEBUG") != "" {
 		return underlying
 	}
-	return fmt.Errorf("project %q not found; run: board init %s", project, project)
+	msg := fmt.Sprintf("project %q not found; run: board init %s", project, project)
+	projects, err := s.ListProjects(false)
+	if err == nil && len(projects) > 0 {
+		msg += fmt.Sprintf("\nAvailable boards: %s", strings.Join(projects, ", "))
+	}
+	return fmt.Errorf("%s", msg)
 }
 
 // issueNotFoundErr returns a user-friendly message for missing issues.
