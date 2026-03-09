@@ -19,6 +19,7 @@ const (
 	boardDirName       = ".board"
 	boardFileName      = "board.json"
 	startingIssueValue = 1001
+	storageDirEnv      = "BOARD_STORAGE_DIR"
 )
 
 var multiUnderscore = regexp.MustCompile(`_+`)
@@ -241,12 +242,27 @@ func (s *Store) LoadBoard(project string) (BoardMeta, error) {
 	return meta, err
 }
 
-func (s *Store) ListProjects(includeArchived bool) ([]string, error) {
+// storageRoot returns the board storage root directory. If BOARD_STORAGE_DIR is set
+// to an absolute path, that is used; otherwise it is home/.board.
+func (s *Store) storageRoot() (string, error) {
+	if dir := os.Getenv(storageDirEnv); dir != "" {
+		if !filepath.IsAbs(dir) {
+			return "", fmt.Errorf("%s must be an absolute path, got: %s", storageDirEnv, dir)
+		}
+		return filepath.Clean(dir), nil
+	}
 	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, boardDirName), nil
+}
+
+func (s *Store) ListProjects(includeArchived bool) ([]string, error) {
+	root, err := s.storageRoot()
 	if err != nil {
 		return nil, err
 	}
-	root := filepath.Join(home, boardDirName)
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -279,11 +295,11 @@ func (s *Store) ListProjects(includeArchived bool) ([]string, error) {
 const archiveDirName = "_archive"
 
 func (s *Store) listArchiveProjects() ([]string, error) {
-	home, err := os.UserHomeDir()
+	base, err := s.storageRoot()
 	if err != nil {
 		return nil, err
 	}
-	root := filepath.Join(home, boardDirName, archiveDirName)
+	root := filepath.Join(base, archiveDirName)
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -331,11 +347,11 @@ func (s *Store) ArchiveProject(project string) error {
 }
 
 func (s *Store) archivePath() (string, error) {
-	home, err := os.UserHomeDir()
+	base, err := s.storageRoot()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, boardDirName, archiveDirName), nil
+	return filepath.Join(base, archiveDirName), nil
 }
 
 func (s *Store) DeleteProject(project string) error {
@@ -420,7 +436,7 @@ func (s *Store) loadBoardForWrite(project string) (string, BoardMeta, error) {
 }
 
 func (s *Store) projectPath(project string) (string, error) {
-	home, err := os.UserHomeDir()
+	root, err := s.storageRoot()
 	if err != nil {
 		return "", err
 	}
@@ -428,7 +444,7 @@ func (s *Store) projectPath(project string) (string, error) {
 	if project == "" {
 		return "", errors.New("project is required")
 	}
-	return filepath.Join(home, boardDirName, project), nil
+	return filepath.Join(root, project), nil
 }
 
 func (s *Store) boardPath(projectPath string) string {

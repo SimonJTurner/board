@@ -34,6 +34,8 @@ Each project lives at:
 
 `~/.board/<project>/`
 
+You can override the board root with an absolute path by setting **`BOARD_STORAGE_DIR`** (e.g. `export BOARD_STORAGE_DIR=/var/board`). If set, it must be an absolute path.
+
 ```
 ~/.board/
 ├── _archive/              # archived projects (board project archive)
