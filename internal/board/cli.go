@@ -175,19 +175,24 @@ func runIssueCreate(store *Store, args []string) error {
 
 func runIssueAssign(store *Store, args []string) error {
 	if len(args) < 2 {
-		return errors.New("usage: board issue assign <project> <issue-id> --assignee ...")
+		return errors.New("usage: board issue assign <project> <issue-id> --assignee ... [--status ...]")
 	}
 	project := args[0]
 	issueID := args[1]
 	fs := flag.NewFlagSet("issue assign", flag.ContinueOnError)
 	assignee := fs.String("assignee", "", "issue assignee")
+	status := fs.String("status", "", "override status (default: in_progress)")
 	if err := fs.Parse(args[2:]); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return errors.New("usage: board issue assign <project> <issue-id> --assignee ...")
+		return errors.New("usage: board issue assign <project> <issue-id> --assignee ... [--status ...]")
 	}
-	issue, oldAssignee, err := store.AssignIssue(project, issueID, *assignee)
+	var statusPtr *string
+	if *status != "" {
+		statusPtr = status
+	}
+	issue, oldAssignee, err := store.AssignIssue(project, issueID, *assignee, statusPtr)
 	if err != nil {
 		return err
 	}
@@ -197,7 +202,7 @@ func runIssueAssign(store *Store, args []string) error {
 
 func runIssueUpdate(store *Store, args []string) error {
 	if len(args) < 2 {
-		return errors.New("usage: board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]")
+		return errors.New("usage: board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...]")
 	}
 	project := args[0]
 	issueID := args[1]
@@ -205,11 +210,12 @@ func runIssueUpdate(store *Store, args []string) error {
 	title := fs.String("title", "", "new title")
 	status := fs.String("status", "", "new status (todo|in_progress|done|cancelled)")
 	description := fs.String("description", "", "new description")
+	assignee := fs.String("assignee", "", "new assignee")
 	if err := fs.Parse(args[2:]); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return errors.New("usage: board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]")
+		return errors.New("usage: board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...]")
 	}
 
 	input := IssueUpdateInput{}
@@ -226,8 +232,11 @@ func runIssueUpdate(store *Store, args []string) error {
 	if provided["description"] {
 		input.Description = description
 	}
-	if input.Title == nil && input.Status == nil && input.Description == nil {
-		return errors.New("at least one of --title, --status, --description is required")
+	if provided["assignee"] {
+		input.Assignee = assignee
+	}
+	if input.Title == nil && input.Status == nil && input.Description == nil && input.Assignee == nil {
+		return errors.New("at least one of --title, --status, --description, --assignee is required")
 	}
 
 	oldMeta, newMeta, err := store.UpdateIssue(project, issueID, input)
@@ -371,8 +380,8 @@ func printUsage() {
 	fmt.Println("  board project archive <name>")
 	fmt.Println("  board update [--repo /path/to/agent-board]")
 	fmt.Println("  board issue create <project> --title ... --description ... [--assignee ...]")
-	fmt.Println("  board issue assign <project> <issue-id> --assignee ...")
-	fmt.Println("  board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]")
+	fmt.Println("  board issue assign <project> <issue-id> --assignee ... [--status ...]")
+	fmt.Println("  board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...]")
 	fmt.Println("  board issue list [project] [--status ...] [--limit N]")
 	fmt.Println("  board issue next [project]    # same as --status todo --limit 1")
 	fmt.Println("  board watch [project] [--interval 2s] [--hook-cmd \"cmd\"] [--plain]")

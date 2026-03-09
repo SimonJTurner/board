@@ -49,10 +49,17 @@ func TestCLIIntegration_IssueLifecycle(t *testing.T) {
 		t.Fatalf("issue assign failed: %v", err)
 	}
 
+	// assign sets status to in_progress by default; verify before update
+	listOut, err = runCLI(t, "issue", "list", "demo")
+	if err != nil {
+		t.Fatalf("issue list after assign failed: %v", err)
+	}
+	assertContains(t, listOut, "in_progress")
+	assertContains(t, listOut, "agent-b")
+
 	if _, err := runCLI(
 		t,
 		"issue", "update", "demo", "DEMO_1001_create_some_feature",
-		"--status", "in_progress",
 		"--title", "Create some feature v2",
 		"--description", "Updated description",
 	); err != nil {
@@ -260,7 +267,7 @@ func TestCLIIntegration_WatchExecHookReceivesEvents(t *testing.T) {
 	}
 	time.Sleep(200 * time.Millisecond)
 
-	if _, _, err := store.AssignIssue("demo", "DEMO_1001_task_a", "agent-b"); err != nil {
+	if _, _, err := store.AssignIssue("demo", "DEMO_1001_task_a", "agent-b", nil); err != nil {
 		t.Fatalf("assign issue failed: %v", err)
 	}
 	time.Sleep(200 * time.Millisecond)

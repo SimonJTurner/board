@@ -103,7 +103,7 @@ func (s *Store) CreateIssue(project, title, description, assignee string) (Issue
 	return issueMeta, nil
 }
 
-func (s *Store) AssignIssue(project, id, assignee string) (IssueMeta, string, error) {
+func (s *Store) AssignIssue(project, id, assignee string, status *string) (IssueMeta, string, error) {
 	assignee = strings.TrimSpace(assignee)
 	if assignee == "" {
 		return IssueMeta{}, "", errors.New("assignee is required")
@@ -124,6 +124,17 @@ func (s *Store) AssignIssue(project, id, assignee string) (IssueMeta, string, er
 	oldAssignee := doc.Assignee
 	doc.Assignee = assignee
 	doc.UpdatedAt = time.Now().UTC()
+	// Default to in_progress unless --status is provided
+	newStatus := StatusInProgress
+	if status != nil && strings.TrimSpace(*status) != "" {
+		sTrim := strings.TrimSpace(*status)
+		if !AllowedStatuses[sTrim] {
+			return IssueMeta{}, "", fmt.Errorf("invalid status %q (allowed: todo, in_progress, done, cancelled)", sTrim)
+		}
+		newStatus = sTrim
+	}
+	doc.Status = newStatus
+	m.Status = newStatus
 	if err := s.writeIssue(projectPath, m.File, doc); err != nil {
 		return IssueMeta{}, "", err
 	}
@@ -180,6 +191,14 @@ func (s *Store) UpdateIssue(project, id string, updates IssueUpdateInput) (Issue
 		if d != doc.Description {
 			doc.Description = d
 			newMeta.DescriptionChecksum = checksum(d)
+			changed = true
+		}
+	}
+	if updates.Assignee != nil {
+		a := strings.TrimSpace(*updates.Assignee)
+		if a != doc.Assignee {
+			doc.Assignee = a
+			newMeta.Assignee = a
 			changed = true
 		}
 	}
@@ -547,4 +566,5 @@ type IssueUpdateInput struct {
 	Title       *string
 	Status      *string
 	Description *string
+	Assignee    *string
 }
