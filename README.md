@@ -6,6 +6,8 @@
 
 Small local Go CLI for Trello-style issue tracking for agent workflows.
 
+**Agents / automation:** See [AGENT.md](AGENT.md) for `--json` output, project inference, and example flows (create, pull next, show, assign, update).
+
 ## Quick start
 
 One-line install (no Go or repo clone required):
@@ -68,11 +70,12 @@ Transitions are unrestricted.
 - `board project delete <name>`
 - `board project archive <name>`
 - `board update [--repo /path/to/board] [--release-repo SimonJTurner/board]`
-- `board issue create <project> --title "..." --description "..." [--assignee "..."]`
-- `board issue assign <project> <issue-id> --assignee "..."`
-- `board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...]`
-- `board issue list [project] [--status <status>] [--limit <N>]` (if omitted, uses current git repo folder name)
-- `board issue next [project]` (same as `issue list --status todo --limit 1`)
+- `board issue create [project] --title "..." --description "..." [--assignee "..."] [--json]`
+- `board issue assign [project] <issue-id> --assignee "..." [--status ...] [--json]`
+- `board issue update [project] <issue-id> [--status ...] [--title ...] [--description ...] [--json]`
+- `board issue list [project] [--status <status>] [--limit <N>] [--json]` (if project omitted, uses current git repo folder name)
+- `board issue next [project] [--json]` (same as `issue list --status todo --limit 1`)
+- `board issue show [project] <issue-id> [--json]` (full issue including description)
 - `board watch [project] [--interval 2s] [--hook-cmd "your-command"] [--plain]` (if omitted, uses current git repo folder name)
 
 ## Watch behavior

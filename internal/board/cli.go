@@ -2,6 +2,7 @@ package board
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -39,6 +40,12 @@ func Run(args []string) error {
 	default:
 		return fmt.Errorf("unknown command: %s", args[0])
 	}
+}
+
+func outputJSON(v interface{}) error {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
 }
 
 func runInit(store *Store, args []string) error {
@@ -145,48 +152,72 @@ func runIssue(store *Store, args []string) error {
 		return runIssueList(store, args[1:])
 	case "next":
 		return runIssueNext(store, args[1:])
+	case "show":
+		return runIssueShow(store, args[1:])
 	default:
 		return fmt.Errorf("unknown issue command: %s", args[0])
 	}
 }
 
 func runIssueCreate(store *Store, args []string) error {
-	if len(args) == 0 {
-		return errors.New("usage: board issue create <project> --title ... --description ... [--assignee ...]")
-	}
-	project := args[0]
+	projectArg, flagArgs := splitOptionalProjectArg(args)
 	fs := flag.NewFlagSet("issue create", flag.ContinueOnError)
 	title := fs.String("title", "", "issue title")
 	description := fs.String("description", "", "issue description")
 	assignee := fs.String("assignee", "", "issue assignee")
-	if err := fs.Parse(args[1:]); err != nil {
+	outputJSONFlag := fs.Bool("json", false, "output machine-readable JSON (for agents)")
+	if err := fs.Parse(flagArgs); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return errors.New("usage: board issue create <project> --title ... --description ... [--assignee ...]")
+		return errors.New("usage: board issue create [project] --title ... --description ... [--assignee ...] [--json]")
+	}
+	project, err := resolveProject(projectArg)
+	if err != nil {
+		return errors.New("usage: board issue create [project] --title ... --description ... (or run inside a git repo to auto-detect project)")
 	}
 	issue, err := store.CreateIssue(project, *title, *description, *assignee)
 	if err != nil {
 		return err
+	}
+	if *outputJSONFlag {
+		return outputJSON(issue)
 	}
 	fmt.Printf("created issue %s (%s)\n", issue.ID, issue.Title)
 	return nil
 }
 
 func runIssueAssign(store *Store, args []string) error {
-	if len(args) < 2 {
-		return errors.New("usage: board issue assign <project> <issue-id> --assignee ... [--status ...]")
+	if len(args) < 1 {
+		return errors.New("usage: board issue assign [project] <issue-id> --assignee ... [--status ...] [--json]")
 	}
-	project := args[0]
-	issueID := args[1]
+	// One or two positional args before flags: [project] <issue-id> or <issue-id>
+	projectArg := ""
+	issueID := ""
+	if len(args) >= 2 && !strings.HasPrefix(args[0], "-") && !strings.HasPrefix(args[1], "-") {
+		projectArg = args[0]
+		issueID = args[1]
+		args = args[2:]
+	} else if len(args) >= 1 && !strings.HasPrefix(args[0], "-") {
+		issueID = args[0]
+		args = args[1:]
+	}
+	if issueID == "" {
+		return errors.New("usage: board issue assign [project] <issue-id> --assignee ... [--status ...] [--json]")
+	}
+	project, err := resolveProject(projectArg)
+	if err != nil {
+		return errors.New("usage: board issue assign [project] <issue-id> --assignee ... (or run inside a git repo to auto-detect project)")
+	}
 	fs := flag.NewFlagSet("issue assign", flag.ContinueOnError)
 	assignee := fs.String("assignee", "", "issue assignee")
 	status := fs.String("status", "", "override status (default: in_progress)")
-	if err := fs.Parse(args[2:]); err != nil {
+	outputJSONFlag := fs.Bool("json", false, "output machine-readable JSON (for agents)")
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return errors.New("usage: board issue assign <project> <issue-id> --assignee ... [--status ...]")
+		return errors.New("usage: board issue assign [project] <issue-id> --assignee ... [--status ...] [--json]")
 	}
 	var statusPtr *string
 	if *status != "" {
@@ -196,26 +227,45 @@ func runIssueAssign(store *Store, args []string) error {
 	if err != nil {
 		return err
 	}
+	if *outputJSONFlag {
+		return outputJSON(issue)
+	}
 	fmt.Printf("assigned issue %s from %q to %q\n", issue.ID, oldAssignee, issue.Assignee)
 	return nil
 }
 
 func runIssueUpdate(store *Store, args []string) error {
-	if len(args) < 2 {
-		return errors.New("usage: board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...]")
+	if len(args) < 1 {
+		return errors.New("usage: board issue update [project] <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...] [--json]")
 	}
-	project := args[0]
-	issueID := args[1]
+	projectArg := ""
+	issueID := ""
+	if len(args) >= 2 && !strings.HasPrefix(args[0], "-") && !strings.HasPrefix(args[1], "-") {
+		projectArg = args[0]
+		issueID = args[1]
+		args = args[2:]
+	} else if len(args) >= 1 && !strings.HasPrefix(args[0], "-") {
+		issueID = args[0]
+		args = args[1:]
+	}
+	if issueID == "" {
+		return errors.New("usage: board issue update [project] <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...] [--json]")
+	}
+	project, err := resolveProject(projectArg)
+	if err != nil {
+		return errors.New("usage: board issue update [project] <issue-id> ... (or run inside a git repo to auto-detect project)")
+	}
 	fs := flag.NewFlagSet("issue update", flag.ContinueOnError)
 	title := fs.String("title", "", "new title")
 	status := fs.String("status", "", "new status (todo|in_progress|done|cancelled)")
 	description := fs.String("description", "", "new description")
 	assignee := fs.String("assignee", "", "new assignee")
-	if err := fs.Parse(args[2:]); err != nil {
+	outputJSONFlag := fs.Bool("json", false, "output machine-readable JSON (for agents)")
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return errors.New("usage: board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...]")
+		return errors.New("usage: board issue update [project] <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...] [--json]")
 	}
 
 	input := IssueUpdateInput{}
@@ -243,6 +293,9 @@ func runIssueUpdate(store *Store, args []string) error {
 	if err != nil {
 		return err
 	}
+	if *outputJSONFlag {
+		return outputJSON(newMeta)
+	}
 	if oldMeta == newMeta {
 		fmt.Printf("no changes for issue %s\n", oldMeta.ID)
 		return nil
@@ -256,11 +309,12 @@ func runIssueList(store *Store, args []string) error {
 	fs := flag.NewFlagSet("issue list", flag.ContinueOnError)
 	status := fs.String("status", "", "filter by status (todo|in_progress|done|cancelled)")
 	limit := fs.Int("limit", 0, "max number of issues to show (0 means no limit)")
+	outputJSONFlag := fs.Bool("json", false, "output machine-readable JSON (for agents)")
 	if err := fs.Parse(flagArgs); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return errors.New("usage: board issue list [project] [--status ...] [--limit N]")
+		return errors.New("usage: board issue list [project] [--status ...] [--limit N] [--json]")
 	}
 
 	project, err := resolveProject(projectArg)
@@ -290,6 +344,9 @@ func runIssueList(store *Store, args []string) error {
 		issues = issues[:*limit]
 	}
 
+	if *outputJSONFlag {
+		return outputJSON(issues)
+	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 	fmt.Fprintln(w, "NUMBER\tID\tSTATUS\tASSIGNEE\tTITLE")
 	for _, issue := range issues {
@@ -299,13 +356,78 @@ func runIssueList(store *Store, args []string) error {
 }
 
 func runIssueNext(store *Store, args []string) error {
-	if len(args) > 1 {
-		return errors.New("usage: board issue next [project]")
+	projectArg, rest := splitOptionalProjectArg(args)
+	if len(rest) > 0 && rest[0] != "--json" {
+		return errors.New("usage: board issue next [project] [--json]")
 	}
-	if len(args) == 1 {
-		return runIssueList(store, []string{args[0], "--status", StatusTodo, "--limit", "1"})
+	jsonFlag := false
+	for i := 0; i < len(rest); i++ {
+		if rest[i] == "--json" {
+			jsonFlag = true
+			break
+		}
 	}
-	return runIssueList(store, []string{"--status", StatusTodo, "--limit", "1"})
+	listArgs := []string{}
+	if projectArg != "" {
+		listArgs = append(listArgs, projectArg)
+	}
+	listArgs = append(listArgs, "--status", StatusTodo, "--limit", "1")
+	if jsonFlag {
+		listArgs = append(listArgs, "--json")
+	}
+	return runIssueList(store, listArgs)
+}
+
+func runIssueShow(store *Store, args []string) error {
+	if len(args) == 0 {
+		return errors.New("usage: board issue show [project] <issue-id> [--json]")
+	}
+	// args could be: [project, issueID, --json] or [issueID, --json] (issueID might look like FOO_1001_title)
+	projectArg := ""
+	issueID := ""
+	rest := args
+	if len(args) >= 2 && !strings.HasPrefix(args[0], "-") && !strings.HasPrefix(args[1], "-") {
+		projectArg = args[0]
+		issueID = args[1]
+		rest = args[2:]
+	} else if len(args) >= 1 && !strings.HasPrefix(args[0], "-") {
+		issueID = args[0]
+		rest = args[1:]
+	}
+	if issueID == "" {
+		return errors.New("usage: board issue show [project] <issue-id> [--json]")
+	}
+	fs := flag.NewFlagSet("issue show", flag.ContinueOnError)
+	outputJSONFlag := fs.Bool("json", false, "output machine-readable JSON (for agents)")
+	if err := fs.Parse(rest); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return errors.New("usage: board issue show [project] <issue-id> [--json]")
+	}
+	project, err := resolveProject(projectArg)
+	if err != nil {
+		return errors.New("usage: board issue show [project] <issue-id> (or run inside a git repo to auto-detect project)")
+	}
+	doc, meta, err := store.GetIssue(project, issueID)
+	if err != nil {
+		return err
+	}
+	if *outputJSONFlag {
+		out := IssueShowOutput{IssueDoc: doc, File: meta.File}
+		return outputJSON(out)
+	}
+	fmt.Printf("id: %s\n", doc.ID)
+	fmt.Printf("number: %d\n", doc.Number)
+	fmt.Printf("title: %s\n", doc.Title)
+	fmt.Printf("status: %s\n", doc.Status)
+	fmt.Printf("assignee: %s\n", doc.Assignee)
+	fmt.Printf("file: %s\n", meta.File)
+	fmt.Printf("created_at: %s\n", doc.CreatedAt.Format(time.RFC3339))
+	fmt.Printf("updated_at: %s\n", doc.UpdatedAt.Format(time.RFC3339))
+	fmt.Println("---")
+	fmt.Println(doc.Description)
+	return nil
 }
 
 func splitOptionalProjectArg(args []string) (project string, flagArgs []string) {
@@ -379,10 +501,11 @@ func printUsage() {
 	fmt.Println("  board project delete <name>")
 	fmt.Println("  board project archive <name>")
 	fmt.Println("  board update [--repo /path]  # default: GitHub release; --repo for local build")
-	fmt.Println("  board issue create <project> --title ... --description ... [--assignee ...]")
-	fmt.Println("  board issue assign <project> <issue-id> --assignee ... [--status ...]")
-	fmt.Println("  board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...]")
-	fmt.Println("  board issue list [project] [--status ...] [--limit N]")
-	fmt.Println("  board issue next [project]    # same as --status todo --limit 1")
+	fmt.Println("  board issue create [project] --title ... --description ... [--assignee ...] [--json]")
+	fmt.Println("  board issue assign [project] <issue-id> --assignee ... [--status ...] [--json]")
+	fmt.Println("  board issue update [project] <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...] [--json]")
+	fmt.Println("  board issue list [project] [--status ...] [--limit N] [--json]")
+	fmt.Println("  board issue next [project] [--json]   # same as list --status todo --limit 1")
+	fmt.Println("  board issue show [project] <issue-id> [--json]")
 	fmt.Println("  board watch [project] [--interval 2s] [--hook-cmd \"cmd\"] [--plain]")
 }

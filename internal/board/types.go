@@ -54,14 +54,20 @@ type IssueMeta struct {
 }
 
 type IssueDoc struct {
-	ID          string
-	Number      int
-	Title       string
-	Status      string
-	Assignee    string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Description string
+	ID          string    `json:"id"`
+	Number      int       `json:"number"`
+	Title       string    `json:"title"`
+	Status      string    `json:"status"`
+	Assignee    string    `json:"assignee,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Description string    `json:"description"`
+}
+
+// IssueShowOutput is the JSON shape for "board issue show --json" (full issue + file path).
+type IssueShowOutput struct {
+	IssueDoc
+	File string `json:"file"`
 }
 
 type Event struct {
