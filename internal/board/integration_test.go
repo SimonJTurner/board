@@ -269,7 +269,7 @@ func TestCLIIntegration_WatchExecHookReceivesEvents(t *testing.T) {
 		})
 	}()
 
-	if _, err := store.CreateIssue("demo", "Task A", "Desc", "agent-a"); err != nil {
+	if _, err := store.CreateIssue("demo", "Task A", "Desc", ""); err != nil {
 		t.Fatalf("create issue failed: %v", err)
 	}
 	time.Sleep(200 * time.Millisecond)
