@@ -121,7 +121,7 @@ board update --repo /path/to/agent-board
 ```
 
 ## GitHub releases
-Create a GitHub release (semantic tag such as `v0.2.0`) and upload the binaries produced by `.github/workflows/release.yml`. Assets must be named `board-<GOOS>-<GOARCH>` (with `.exe` on Windows), e.g.:
+Pushing a semantic version tag (e.g. `v0.2.0`) triggers `.github/workflows/release.yml`, which creates a GitHub Release with auto-generated release notes and uploads the built binaries. Asset names are `board-<GOOS>-<GOARCH>` (with `.exe` on Windows), e.g.:
 ```
 board-linux-amd64
 board-linux-arm64
