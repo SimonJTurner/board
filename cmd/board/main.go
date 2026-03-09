@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"agent-board/internal/board"
+	"github.com/SimonJTurner/board/internal/board"
 )
 
 func main() {

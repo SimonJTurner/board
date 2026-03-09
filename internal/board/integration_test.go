@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"agent-board/internal/board"
+	"github.com/SimonJTurner/board/internal/board"
 )
 
 func TestCLIIntegration_IssueLifecycle(t *testing.T) {
