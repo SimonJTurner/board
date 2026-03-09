@@ -32,9 +32,16 @@ Each project lives at:
 
 `~/.board/<project>/`
 
-Files:
-- `board.json` (metadata index only)
-- `<PROJECT_SLUG>_<NUMBER>_<TITLE_SLUG>.md` issue files
+```
+~/.board/
+├── _archive/              # archived projects (board project archive)
+│   └── <archived-project>/
+│       ├── board.json
+│       └── *.md
+└── <project>/
+    ├── board.json         # metadata index only
+    └── <SLUG>_<NUMBER>_<TITLE_SLUG>.md   # issue files
+```
 
 Example issue filename:
 - `FOO_1001_create_some_feature.md`
@@ -107,18 +114,19 @@ make release-minor  # bump minor version (can still override via MAJOR/MINOR/PAT
 Ensure your Go bin directory is in `PATH`.
 
 ## Update installed executable
-From inside this repo:
+By default, `board update` fetches the latest binary from the GitHub releases (SimonJTurner/board):
 ```bash
 board update
 ```
 
-From anywhere via releases:
+To use a different release repo (e.g. a fork):
 ```bash
-BOARD_RELEASE_REPO=SimonJTurner/board board update
+BOARD_RELEASE_REPO=owner/repo board update
+# or
+board update --release-repo owner/repo
 ```
-Set `BOARD_DEBUG=1` to show underlying errors when a project or issue is not found (default is a short hint, e.g. run `board init <project>`).
 
-Or point directly at the repo:
+For local contributors testing changes from a clone:
 ```bash
 board update --repo /path/to/board
 ```

@@ -19,17 +19,20 @@ const releaseBaseURL = "https://github.com"
 func runUpdate(args []string) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
 	repo := fs.String("repo", "", "path to local agent-board repository")
-	releaseRepo := fs.String("release-repo", "", "GitHub owner/repo for releases (defaults to origin)")
+	releaseRepo := fs.String("release-repo", "", "GitHub owner/repo for releases (default: SimonJTurner/board)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return errors.New("usage: board update [--repo /path/to/agent-board] [--release-repo owner/repo]")
+		return errors.New("usage: board update [--repo /path/to/board] [--release-repo owner/repo]")
 	}
 
-	if repoPath, err := determineRepoPath(*repo); err != nil {
-		return err
-	} else if repoPath != "" {
+	// Local repo only when explicitly requested (for contributors testing)
+	if p := strings.TrimSpace(*repo); p != "" {
+		repoPath, err := validateRepoPath(p)
+		if err != nil {
+			return err
+		}
 		return installFromRepo(repoPath)
 	}
 
@@ -45,16 +48,6 @@ func runUpdate(args []string) error {
 	return nil
 }
 
-func determineRepoPath(explicit string) (string, error) {
-	if p := strings.TrimSpace(explicit); p != "" {
-		return validateRepoPath(p)
-	}
-	if p := strings.TrimSpace(os.Getenv("BOARD_REPO")); p != "" {
-		return validateRepoPath(p)
-	}
-	return "", nil
-}
-
 func installFromRepo(repoPath string) error {
 	cmd := exec.Command("go", "install", "./cmd/board")
 	cmd.Dir = repoPath
@@ -67,6 +60,8 @@ func installFromRepo(repoPath string) error {
 	return nil
 }
 
+const defaultReleaseRepo = "SimonJTurner/board"
+
 func resolveReleaseRepo(explicit string) (string, error) {
 	if repo, err := normalizeReleaseRepo(explicit); err == nil && repo != "" {
 		return repo, nil
@@ -74,7 +69,10 @@ func resolveReleaseRepo(explicit string) (string, error) {
 	if repo, err := normalizeReleaseRepo(os.Getenv("BOARD_RELEASE_REPO")); err == nil && repo != "" {
 		return repo, nil
 	}
-	return inferReleaseRepoFromGit()
+	if repo, err := inferReleaseRepoFromGit(); err == nil && repo != "" {
+		return repo, nil
+	}
+	return defaultReleaseRepo, nil
 }
 
 func normalizeReleaseRepo(value string) (string, error) {
@@ -105,7 +103,8 @@ func inferReleaseRepoFromGit() (string, error) {
 	cmd := exec.Command("git", "remote", "get-url", "origin")
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("release repo not found: %w; pass --release-repo or BOARD_RELEASE_REPO", err)
+		// Fall through to default
+		return "", nil
 	}
 	repo, err := normalizeReleaseRepo(string(out))
 	if err != nil {
@@ -163,10 +162,10 @@ func validateRepoPath(path string) (string, error) {
 		return "", err
 	}
 	if _, err := os.Stat(filepath.Join(abs, "go.mod")); err != nil {
-		return "", fmt.Errorf("%s is not a board repo (missing go.mod); set --repo or BOARD_REPO", abs)
+		return "", fmt.Errorf("%s is not a board repo (missing go.mod)", abs)
 	}
 	if _, err := os.Stat(filepath.Join(abs, "cmd", "board", "main.go")); err != nil {
-		return "", fmt.Errorf("%s is not a board repo (missing cmd/board/main.go); set --repo or BOARD_REPO", abs)
+		return "", fmt.Errorf("%s is not a board repo (missing cmd/board/main.go)", abs)
 	}
 	return abs, nil
 }

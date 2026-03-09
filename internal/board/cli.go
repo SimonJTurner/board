@@ -378,7 +378,7 @@ func printUsage() {
 	fmt.Println("  board project list [--archived]")
 	fmt.Println("  board project delete <name>")
 	fmt.Println("  board project archive <name>")
-	fmt.Println("  board update [--repo /path/to/agent-board]")
+	fmt.Println("  board update [--repo /path]  # default: GitHub release; --repo for local build")
 	fmt.Println("  board issue create <project> --title ... --description ... [--assignee ...]")
 	fmt.Println("  board issue assign <project> <issue-id> --assignee ... [--status ...]")
 	fmt.Println("  board issue update <project> <issue-id> [--status ...] [--title ...] [--description ...] [--assignee ...]")
